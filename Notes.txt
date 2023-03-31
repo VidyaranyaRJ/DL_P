@@ -1,0 +1,34 @@
+write a summary at the end
+making the model read different language books
+
+
+
+
+This code loads data from several books, preprocesses it, trains a LSTM model on the data, and saves the model. 
+It also extracts the main character from the combined sentences using spaCy's named entity recognition. The sentences 
+are split into training and testing sets and the model is trained using padded sequences and categorical targets.
+
+One potential issue with this code is that it loads all the sentences into memory before shuffling and splitting them 
+into training and testing sets. This can be problematic if the combined sentences are very large and consume a lot of memory.
+A possible solution to this issue is to use a generator to stream the data in smaller batches instead of loading all of it 
+into memory at once. Another potential issue is that the code only extracts the main character from the combined sentences, 
+but it doesn't associate the main character with the specific book they appear in. To address this issue, the code could be 
+modified to keep track of the book URL or name for each sentence and associate the main character with the corresponding 
+book.
+
+# Find the index of the predicted main character in the target sequences
+pred_main_char_index = tf.argmax(tf.reduce_sum(new_book_target[:, :, main_char_index], axis=1)).numpy()
+
+# Find the sentence containing the predicted main character
+pred_main_char_sentence = new_book_sentences[pred_main_char_index][1]
+
+print("The predicted main character is:", new_book_main_character)
+print("The sentence containing the predicted main character is:", pred_main_char_sentence)
+
+
+Try different architectures: The current architecture consists of three stacked LSTM layers followed by three dense layers. 
+Experimenting with different architectures such as using bidirectional LSTMs or different combinations of layers may improve 
+the accuracy.
+
+Use pre-trained embeddings: Instead of learning word embeddings from scratch, you can use pre-trained word embeddings 
+such as GloVe or Word2Vec. This can help the model to better capture the meaning of the words and improve its accuracy.

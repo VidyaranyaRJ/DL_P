@@ -1,0 +1,205 @@
+
+import requests
+import tensorflow as tf
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.utils import to_categorical
+import spacy
+from collections import Counter
+
+nlp = spacy.load("en_core_web_sm")
+
+url = "https://openlibrary.org/works/OL45883W/Forrest_Gump.txt"
+response = requests.get(url)
+book = response.text
+
+sentences = book.split(".")
+
+tokenizer = Tokenizer()
+tokenizer.fit_on_texts(sentences)
+
+sequences = tokenizer.texts_to_sequences(sentences)
+
+max_length = max([len(seq) for seq in sequences])
+padded_sequences = pad_sequences(sequences, maxlen=max_length, padding="post")
+
+model = tf.keras.Sequential([
+    tf.keras.layers.Embedding(input_dim=len(tokenizer.word_index)+1, output_dim=64, input_length=max_length),
+    tf.keras.layers.LSTM(units=64, return_sequences=True),
+    tf.keras.layers.Dense(units=64, activation="relu"),
+    tf.keras.layers.TimeDistributed(tf.keras.layers.Dense(units=len(tokenizer.word_index)+1, activation="softmax"))
+])
+
+model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+
+target = [to_categorical(seq, num_classes=len(tokenizer.word_index)+1) for seq in sequences]
+target = pad_sequences(target, maxlen=max_length, padding="post")
+target = target.reshape(target.shape[0], target.shape[1], len(tokenizer.word_index)+1)
+
+# Train the model with target data
+model.fit(padded_sequences, target, epochs=10)
+model.save("book_rnn_model.h5")
+
+entity_counter = Counter()
+
+for sentence in sentences:
+    # Parse the sentence with spaCy
+    doc = nlp(sentence)
+    # Loop through each named entity in the sentence
+    for ent in doc.ents:
+        # If the named entity is a person, increment its count in the counter
+        if ent.label_ == "PERSON":
+            entity_counter[ent.text] += 1
+
+main_character = entity_counter.most_common(1)[0][0]
+
+print("The main character is:", main_character)
+
+
+
+"""
+    "OL45883W/Forrest_Gump.txt",
+    "OL574455W/The_Fellowship_of_the_Ring.txt",
+    "OL18470W/To_Kill_a_Mockingbird.txt",
+    "OL28883W/The_Hobbit.txt",
+    "OL18661W/The_Catcher_in_the_Rye.txt",
+    "OL23222180M/Harry_Potter_and_the_Philosopher_s_Stone.txt",
+    "OL32115767M/The_Hunger_Games.txt",
+    "OL23959622M/The_Da_Vinci_Code.txt",
+    "OL23222224M/The_Lord_of_the_Rings.txt",
+    "OL23222240M/Harry_Potter_and_the_Deathly_Hallows.txt",
+    "OL23222218M/Harry_Potter_and_the_Order_of_the_Phoenix.txt",
+    "OL23222209M/Harry_Potter_and_the_Half_Blood_Prince.txt",
+    "OL32115473M/The_Maze_Runner.txt",
+    "OL23222205M/Harry_Potter_and_the_Goblet_of_Fire.txt",
+    "OL23222211M/Harry_Potter_and_the_Prisoner_of_Azkaban.txt",
+    "OL23222227M/The_Casual_Vacancy.txt",
+    "OL23222184M/Harry_Potter_and_the_Chamber_of_Secrets.txt",
+    "OL23222200M/Harry_Potter_and_the_Sorcerer_s_Stone.txt",
+    "OL32090691M/The_7_Habits_of_Highly_Effective_People.txt",
+    "OL15759320M/The_Time_Traveler_s_Wife.txt",
+    "OL39296W/The_Great_Gatsby.txt",
+    "OL396728W/Pride_and_Prejudice.txt",
+    "OL396721W/1984.txt",
+    "OL10737053M/The_Kite_Runner.txt",
+    "OL15757415M/Water_for_Elephants.txt",
+    "OL24362996M/The_Girl_with_the_Dragon_Tattoo.txt",
+    "OL32075868M/The_Devil_Wears_Prada.txt",
+    "OL9066725M/Animal_Farm.txt",
+    "OL23957417M/Gone_Girl.txt",
+    "OL24183134M/The_Help.txt",
+    "OL10736132M/Eat_Pray_Love.txt",
+    "OL10737270M/The_Perks_of_Being_a_Wallflower.txt",
+    "OL10736320M/The_Book_Thief.txt",
+    "OL10736329M/The_Fault_in_Our_Stars.txt",
+    "OL27029209M/The_Seven_Husbands_of_Evelyn_Hugo.txt",
+    "OL32115738M/Me_Before_You.txt",
+    "OL10737281M/Ready_Player_One.txt",
+    "OL10737307M/The_Night_Circus.txt",
+    "OL32115369M/The_Five_People_You_Meet_in_Heaven.txt",
+    "OL32075862M/The_Timekeeper.txt",
+    "OL10736338M/The_Handmaid_s_Tale.txt",
+    "OL10736085M/The_Curious_Incident_of_the_Dog_in_the_Night_Time.txt",
+    "OL10737325M/The_Silent_Patient.txt",
+    "OL10737305M/The_Song_of_Achilles.txt",
+    "OL10736115M/The_Alchemist.txt",
+    "OL10737308M/The_Immortal_Life_of_Henrietta_Lacks.txt",
+    "OL10736079M/The_Color_Purple.txt",
+    "OL10736094M/The_Joy_Luck_Club.txt",
+    "OL10737269M/Big_Little_Lies.txt",
+    "OL10737055M/A_Thousand_Splendid_Suns.txt",
+    "OL10736092M/The_Handmaid_s_Tale.txt",
+    "OL10737276M/The_Martian.txt",
+    "OL10737280M/Red_Rising.txt",
+    "OL10737302M/The_Six_of_Crows.txt",
+    "OL10736127M/The_Little_Prince.txt",
+    "OL10736083M/The_Glass_Castle.txt",
+    "OL10737299M/The_Hate_U_Give.txt",
+    "OL10737309M/The_Orphan_Master_s_Son.txt",
+    "OL10737315M/The_Bone_Collector.txt",
+    "OL10737283M/Sharp_Objects.txt",
+    "OL10737324M/The_7_1_2_Deaths_of_Evelyn_Hardcastle.txt",
+    "OL10737312M/The_Power_of_One.txt",
+    "OL10737314M/The_Lies_of_Locke_Lamora.txt",
+    "OL10737326M/The_Book_of_M._A_Novel.txt",
+    "OL10737300M/The_City_We_Became.txt",
+    "OL10737303M/The_Starless_Sea.txt",
+    "OL10737316M/Life_of_Pi.txt",
+    "OL10737296M/American_Gods.txt",
+    "OL10737297M/The_Road.txt",
+    "OL10737304M/The_Water_Dancer.txt",
+    "OL10737318M/The_Art_of_Racing_in_the_Rain.txt",
+    "OL10737321M/The_Testaments.txt",
+    "OL10736077M/The_Things_They_Carried.txt",
+    "OL10737320M/The_Vanishing_Half.txt",
+    "OL10736082M/The_Jungle.txt",
+    "OL10737311M/The_Heart_s_Invisible_Furies.txt",
+    "OL10736098M/The_Book_of_Unknown_Americans.txt",
+    "OL10737323M/The_Song_of_Ice_and_Fire.txt",
+    "OL10737317M/The_Guernsey_Literary_and_Potato_Peel_Pie_Society.txt",
+    "OL10737294M/The_Circle.txt",
+    "OL10736081M/Things_Fall_Apart.txt",
+    "OL10736091M/The_Immortalists.txt",
+    "OL10737322M/The_Sun_Also_Rises.txt",
+    "OL10737284M/The_Nightingale.txt",
+    "OL10737288M/The_Thief.txt",
+    "OL10737295M/The_First_Fifteen_Lives_of_Harry_August.txt",
+    "OL10737319M/The_Five_Love_Languages.txt",
+    "OL10737306M/The_Overstory.txt",
+    "OL10737313M/The_House_in_the_Cerulean_Sea.txt",
+    "OL10737310M/The_Water_Will_Come.txt",
+    "OL10736076M/Their_Eyes_Were_Watching_God.txt",
+    "OL10736096M/The_Leavers.txt",
+    "OL10736097M/All_the_Light_We_Cannot",
+    """
+
+
+
+"""import tensorflow as tf
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from nltk.tokenize import word_tokenize
+from tensorflow.keras.preprocessing.text import Tokenizer
+
+tokenizer = Tokenizer()
+
+# Define the path to your book file and trained RNN model file
+book_path = "path/to/your/book.txt"
+model_path = "path/to/your/book_rnn_model.h5"
+
+# Load the trained RNN model
+model = tf.keras.models.load_model(model_path)
+
+# Read the book and convert it into a list of sentences
+with open(book_path, "r") as f:
+    book = f.read()
+sentences = book.split(".")
+
+# Define a function to preprocess a question
+def preprocess_question(question):
+    question_tokens = word_tokenize(question.lower())
+    question_sequence = [tokenizer.word_index.get(word, 0) for word in question_tokens]
+    padded_question_sequence = pad_sequences([question_sequence], maxlen=max_length, padding="post")
+    return padded_question_sequence
+
+# Define a function to answer a question
+def answer_question(question):
+    # Preprocess the question
+    padded_question_sequence = preprocess_question(question)
+
+    # Predict the answer using the RNN model
+    predicted_sequence = model.predict(padded_question_sequence)[0]
+    predicted_index = tf.argmax(predicted_sequence, axis=-1).numpy()
+    predicted_word = tokenizer.index_word[predicted_index]
+
+    # Find the sentence in the book that contains the predicted word
+    for sentence in sentences:
+        if predicted_word in sentence.lower():
+            return sentence.strip()
+
+# Ask a few example questions and get answers
+print(answer_question("What is the name of the main character?"))
+print(answer_question("Where does the story take place?"))
+print(answer_question("What is the main theme of the book?"))
+"""
+
+
